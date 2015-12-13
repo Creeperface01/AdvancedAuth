@@ -10,7 +10,12 @@ import cn.nukkit.event.Listener;
 import cn.nukkit.plugin.PluginBase;
 import cn.nukkit.utils.Config;
 import cn.nukkit.utils.TextFormat;
+import sun.security.krb5.Checksum;
 
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.rmi.registry.Registry;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
@@ -28,7 +33,33 @@ public class SimpleAuth extends PluginBase implements Listener{
 
     @Override
     public void onEnable(){
+        /*File path = new File(getDataFolder() + "/config.yml");
+        path.mkdirs();
+        try{
+            PrintWriter writer = new PrintWriter(getDataFolder() + "/config.txt", "UTF-8");
+            writer.write(getResource("config.yml").read());
+            writer.close();
+        }catch(IOException e){
+            e.printStackTrace(System.err);
+        }*/
+
+
+        if(!getDataFolder().exists()){
+            getDataFolder().mkdirs();
+        }
         saveResource("config.yml");
+
+
+        /*if(!new File(getDataFolder() + "/config.yml").isFile()){
+            try{
+                PrintWriter writer = new PrintWriter(getDataFolder() + "/config.yml", "UTF-8");
+                writer.write(getResource("/config.yml").read());
+                writer.close();
+            }catch(IOException e){
+                e.printStackTrace(System.err);
+            }
+        }*/
+
         initConfig();
         setProvider();
         eventListener = new EventListener(this);
@@ -57,7 +88,7 @@ public class SimpleAuth extends PluginBase implements Listener{
                     sender.sendMessage(TextFormat.RED + "Use /register <password> <password>");
                     break;
                 }
-                if(args[0].equals(args[1])){
+                if(!args[0].equals(args[1])){
                     sender.sendMessage(TextFormat.RED + "Both passwords must be equal!");
                     break;
                 }
@@ -103,6 +134,7 @@ public class SimpleAuth extends PluginBase implements Listener{
         if(provider.registerPlayer(p, pass) == null){
             return false;
         }
+        unauthed.remove(p.getName().toLowerCase());
         p.sendMessage(TextFormat.GREEN + "You have been authenticated.");
 
         return true;
@@ -118,7 +150,7 @@ public class SimpleAuth extends PluginBase implements Listener{
             p.sendMessage(TextFormat.RED + "Error during authentication.");
             return false;
         }
-        if(!data.get("hash").equals(pass)){
+        if(!data.get("hash").equals(hash(p.getName().toLowerCase(), pass))){
             p.sendMessage(TextFormat.RED + "Incorrect password!");
             return false;
         }
@@ -137,7 +169,7 @@ public class SimpleAuth extends PluginBase implements Listener{
     }
 
     public void initConfig(){
-        Config cfg = new Config(this.getDataFolder() + "config.yml");
+        Config cfg = new Config(this.getDataFolder() + "/config.yml");
 
         data.put("dataProvider", cfg.get("dataProvider", "yaml").toLowerCase());
         data.put("dataProviderSettings", cfg.get("dataProviderSettings", "").toLowerCase());
@@ -158,36 +190,44 @@ public class SimpleAuth extends PluginBase implements Listener{
         }
     }
 
-    private String hash(String salt, String password){
+    private String hash(String salt, String password) {
+        String one;
+        String two;
+
         try {
             MessageDigest md = MessageDigest.getInstance("SHA-512");
             md.reset();
             md.update((password + salt).getBytes());
-            String one = new String(md.digest());
+            one = new String(md.digest());
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace(System.err);
+            return null;
+        }
 
-            md = MessageDigest.getInstance("whirlpool");
+        try{
+            MessageDigest md = MessageDigest.getInstance("SHA-512");
             md.reset();
             md.update((salt + password).getBytes());
-            String two = new String(md.digest());
-
-            byte[] sb = one.getBytes(), wb = two.getBytes();
-            assert sb.length == wb.length;
-            int[] output = new int[sb.length];
-            for(int i = 0; i < output.length; i++){ //thx to PEMapModder
-                output[i] = sb[i] ^ wb[i];
-            }
-            StringBuilder outb = new StringBuilder();
-            for(int bite : output){
-                outb.append(String.format("%2x", bite | 0)); // | 0: to convert to int without making it negative
-            }
-
-            return outb.toString();
-
-            //output = String.format("%21X", Long.parseLong(one + two, 2));
+            two = new String(md.digest());
         }catch (NoSuchAlgorithmException e) {
             e.printStackTrace(System.err);
             return null;
         }
+
+        byte[] sb = one.getBytes(), wb = two.getBytes();
+        assert sb.length == wb.length;
+        int[] output = new int[sb.length];
+        for (int i = 0; i < output.length; i++) { //thx to PEMapModder
+            output[i] = sb[i] ^ wb[i];
+        }
+        StringBuilder outb = new StringBuilder();
+        for (int bite : output) {
+            outb.append(String.format("%2x", bite | 0)); // | 0: to convert to int without making it negative
+        }
+
+        return outb.toString();
+
+        //output = String.format("%21X", Long.parseLong(one + two, 2));
     }
 
     public boolean isAuthed(Player p){

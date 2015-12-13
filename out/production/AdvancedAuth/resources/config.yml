@@ -1,0 +1,27 @@
+# Default config for SimpleAuth plugin
+
+#Sets the data provider (yaml, mysql, none).
+#Only use none when there is another plugin that will integrate its dataProvider with SimpleAuth
+#Be aware that data is not automatically moved between data providers.
+dataProvider: yaml
+
+#For MySQL:
+#dataProviderSettings:
+# host: "127.0.0.1"
+# port: 3306
+# user: "user"
+# password: "password"
+# database: "databaseName"
+dataProviderSettings: []
+
+#Sets the minimum amount of characters to be used when registering a new account
+minPasswordLength: 6
+
+#Sets the maximum amount of characters to be used when registering a new account
+maxPasswordLength: 20
+
+#If enabled, accounts that are using the same unique id (ip + clientId + name) when logging in again will be automatically authenticated
+authenticateByLastUniqueId: false
+
+#Number of seconds to wait for a player to be authenticated. If false, disables the timeout
+authenticateTimeout: 120
